@@ -22,7 +22,6 @@ mongoose.connect("mongodb+srv://admin:admin1234@wdc028-course-booking.ozpncap.mo
 let db = mongoose.connection;
 db.on("error", console.error.bind(console,"connection error"));
 db.once("open",()=>console.log("Now connected to MongoDB Atlas!"));
-
 // [Backend Routes]
 app.use('/users', userRoutes);
 

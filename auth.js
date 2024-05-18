@@ -2,19 +2,21 @@
 const jwt = require("jsonwebtoken");
 require('dotenv').config();
 
-const secret = `${process.env.REACT_APP_API_BASE_URL}`;
+const secret = `${process.env.AUTH_SECRET}`;
 
-module.exports.createAccessToken = (user) =>{
+module.exports.createAccessToken = (userId, res) =>{
 
-  const data = {
-    id: user._id,
-    email: user.email,
-    isAdmin: user.isAdmin
-  }
 
-  return jwt.sign(data, secret, {});
+  const token = jwt.sign({userId}, secret, {expiresIn: "2d"})
 
-}
+  res.cookie("jwt", token, {
+    maxAge: 2 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV !== "development" 
+  });
+
+};
 
 module.exports.verify = (req,res, next) => {
   let token = req.headers.authorization;
@@ -38,19 +40,8 @@ module.exports.verify = (req,res, next) => {
     })
   }
 }
-
-module.exports.verifyAdmin  = (req, res, next) => {
-  console.log("resilt from verifyadmin metohd:");
-  console.log(req.user);
-
-  if(req.user.isAdmin){
-    next()
-  }else{
-    return res.status(403).send({
-      "auth":"Failed",
-			message:"Action Forbidden"
-    })
-  }
+module.exports.removeCookie = async (req,res) =>{
+		res.cookie("jwt", "", { maxAge: 0 });
 }
 
 module.exports.isLoggedIn = (req,res,next) =>{

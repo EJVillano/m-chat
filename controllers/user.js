@@ -3,62 +3,100 @@ const bcrypt = require("bcrypt")
 const User = require("../models/User.js");
 const auth = require("../auth.js")
 
-module.exports.registerUser = (req,res) => {
-	// checks if the email is in the right format
-	if (!req.body.email.includes("@")){
-		return res.status(400).send({ error: "Email invalid" });
-	}
-	// checks if the mobile number has the correct number of characters
-	else if (req.body.mobileNo.length !== 11){
-		return res.status(400).send({ error: "Mobile number invalid" });
-	}
-	// checks if the password has atleast 8 characters
-	else if (req.body.password.length < 8) {
-		return res.status(400).send({ error: "Password must be atleast 8 characters" });
-	}
-	// if all needed formats are achieved
-	else {
-		// Creates a variable "newUser" and instantiates a new "User" object using the mongoose model
-		// Uses the information from the request body to provide all the necessary information
-		let newUser = new User({
-			firstName : req.body.firstName,
-			lastName : req.body.lastName,
-			email : req.body.email,
-			mobileNo : req.body.mobileNo,
-			password : bcrypt.hashSync(req.body.password, 10)
-		})
-		// Saves the created object to our database
-		return newUser.save()
-		.then((user) => res.status(201).send({ message: "Registered Successfully" }))
-		.catch(err => {
-			console.error("Error in saving: ", err);
-			return res.status(500).send({ error: "Error in save"});
-		})
+module.exports.registerUser = async (req, res) => {
+	try {
+		const { firstName, lastName, email, username, password, confirmPassword  } = req.body;
+		const existingEmail = await User.findOne({ email });
+		const existingUsername = await User.findOne({ username });
+
+		if (!email.includes("@")) {
+			return res.status(400).send({ error: "Email invalid" });
+		}
+
+		if (password.length < 8) {
+			return res.status(400).send({ error: "Password must be at least 8 characters" });
+		}
+
+		if (confirmPassword !== password ){
+			return res.status(400).send({ error: "Passwords does not match" });
+		}
+
+		if (existingEmail) {
+			return res.status(400).send({ error: "Email already exists" });
+		}
+
+		if (existingUsername) {
+			return res.status(400).send({ error: `${username} username is already taken` });
+		}
+
+
+		const hashedPassword = bcrypt.hashSync(password, 10);
+
+		const newUser = new User({
+			firstName,
+			lastName,
+			username,
+			email,
+			password: hashedPassword,
+			avatar: `https://api.dicebear.com/8.x/big-smile/svg?seed=${firstName}_${lastName}`
+		});
+
+		auth.createAccessToken(newUser._id, res);
+		await newUser.save();
+
+		return res.status(201).send({ message: "Registered Successfully" });
+	} catch (err) {
+		console.error("Error:", err);
+		return res.status(500).send({ error: "Internal Server Error" });
 	}
 };
 
-module.exports.loginUser = (req, res) => {
-	if(req.body.email.includes("@")){
-		User.findOne({ email : req.body.email })
-		.then(result => {
-			if(result == null){
-				return res.status(404).send({ error: "No Email Found" });
-			} else {
-				const isPasswordCorrect = bcrypt.compareSync(req.body.password, result.password);
-
-				if (isPasswordCorrect) {
-					return res.status(200).send({ access : auth.createAccessToken(result)});
-				} else {
-					return res.status(401).send({ message: "Email and password do not match" });
-				}
-			}
-		})
-		.catch(err => {
-			console.error("Error in find: ", err)
-			return res.status(500).send({ error: "Error in find"})
-		})
-		}
-		else {
-			return res.status(400).send({error: "Invalid Email"})
-		}
+module.exports.loginUser = async (req, res) => {
+	try {
+	  const { email, username, password } = req.body;
+	  
+	  if (!email && !username) {
+		return res.status(400).send({ error: "Invalid Email/Username" });
+	  }
+  
+	  const criteria = email ? { email } : { username };
+	  const user = await User.findOne(criteria);
+	  
+	  if (!user) {
+		const errorField = email ? 'Email' : 'Username';
+		return res.status(404).send({ error: `${errorField} does not exist` });
+	  }
+  
+	  const isPasswordCorrect = bcrypt.compareSync(password, user.password);
+	  
+	  if (!isPasswordCorrect) {
+		const errorMessage = email ? "Email and password do not match" : "Username and password do not match";
+		return res.status(401).send({ message: errorMessage });
+	  }
+  
+	  auth.createAccessToken(user._id, res);
+  
+	  return res.status(200).send({
+		_id: user._id,
+		firstName: user.firstName,
+		lastName: user.lastName,
+		username: user.username,
+		avatar: user.avatar
+	  });
+	  
+	} catch (err) {
+	  console.error("Error in loginUser: ", err);
+	  return res.status(500).send({ error: "Internal Server Error" });
+	}
 };
+
+module.exports.logoutUser = async(req, res) => {
+	try{
+		auth.removeCookie(req, res);
+		res.status(200).send({message: "Logged out successfully"});
+	}catch(err){
+		console.error(err);
+		res.status(500).send({error: "Internal Server Error"})
+	}
+	
+}

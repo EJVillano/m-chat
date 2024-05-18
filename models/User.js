@@ -16,15 +16,16 @@ const userSchema = new mongoose.Schema({
 	},
 	password: {
 		type: String,
-		required: [true, 'Password is Required']
+		required: [true, 'Password is Required'],
+		minlength:6
 	},
-	isAdmin: {
-		type: Boolean,
-		default: false
-	},
-	mobileNo: {
+	username: {
 		type: String,
-		required: [true, 'Mobile Number is Required']
+		required: [true, 'User Name is Required']
+	},
+	avatar: {
+		type: String,
+		default: ""
 	}
 });
 
