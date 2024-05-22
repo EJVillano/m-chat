@@ -49,6 +49,7 @@ module.exports.removeCookie = async (req,res) =>{
 module.exports.protectRoute = async (req, res, next) => {
   try {
     const token = req.cookies.jwt;
+    console.log("token:", token);
 
     if (!token) {
       return res.status(403).json({ error: "Unauthorized - No token provided" });

@@ -4,8 +4,15 @@ const Message = require('../models/Message.js');
 module.exports.sendMessage = async (req, res) => {
     try {
         const { message } = req.body;
-        const { userId: senderId } = req.user; // Extract senderId from decoded token
+        const { _id: senderId } = req.user; // Extract senderId from decoded token
         const { id: receiverId } = req.params; // Extract receiverId from request parameters
+
+        console.log("Decoded token:", req.user); // Log decoded token to check if senderId is present
+
+        // Validate senderId
+        if (!senderId) {
+            return res.status(400).send({ error: "Sender ID is missing" });
+        }
 
         let conversation = await Conversation.findOne({
             participants: { $all: [senderId, receiverId] }
