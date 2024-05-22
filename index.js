@@ -2,9 +2,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const cookieParser = require("cookie-parser")
 
 // [Routes Access]
 const userRoutes = require('./routes/user.js')
+const messageRoutes = require('./routes/message.js')
 
 // [Environment Setup]
 const port = 4000;
@@ -14,6 +16,7 @@ const app = express();
 
 //[Middlewares]
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.urlencoded({extended:true}));
 app.use(cors());    
 
@@ -24,6 +27,7 @@ db.on("error", console.error.bind(console,"connection error"));
 db.once("open",()=>console.log("Now connected to MongoDB Atlas!"));
 // [Backend Routes]
 app.use('/users', userRoutes);
+app.use('/messages', messageRoutes);
 
 //[Server Gateway Response]
 if(require.main === module){

@@ -1,6 +1,8 @@
 // [Dependencies and Modules]
 const jwt = require("jsonwebtoken");
 require('dotenv').config();
+const User = require("./models/User");
+
 
 const secret = `${process.env.AUTH_SECRET}`;
 
@@ -41,8 +43,40 @@ module.exports.verify = (req,res, next) => {
   }
 }
 module.exports.removeCookie = async (req,res) =>{
-		res.cookie("jwt", "", { maxAge: 0 });
+	res.cookie("jwt", "", { maxAge: 0 });
 }
+
+module.exports.protectRoute = async (req, res, next) => {
+  try {
+    const token = req.cookies.jwt;
+
+    if (!token) {
+      return res.status(403).json({ error: "Unauthorized - No token provided" });
+    }
+
+    const decoded = jwt.verify(token, secret);
+
+    if (!decoded) {
+      return res.status(403).json({ error: "Unauthorized - Invalid token" });
+    }
+
+    console.log("Decoded token:", decoded); // Add logging to verify token content
+    console.log("User model:", User); // Add logging to check if User model is loaded correctly
+
+    const user = await User.findById(decoded.userId).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    req.user = user;
+    next();
+
+  } catch (err) {
+    console.log(`protectRoute:`, err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
 module.exports.isLoggedIn = (req,res,next) =>{
 
